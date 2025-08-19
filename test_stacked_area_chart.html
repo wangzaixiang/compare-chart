@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stacked Area Chart Performance Test - TypeScript Modules</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 18px;
+        }
+
+        .controls {
+            padding: 30px;
+            border-bottom: 2px solid #f0f0f0;
+            background: #fafafa;
+        }
+
+        .framework-selector {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .framework-btn {
+            padding: 12px 24px;
+            border: 3px solid #ddd;
+            background: white;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 16px;
+            font-weight: 600;
+            min-width: 140px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .framework-btn:hover {
+            border-color: #3498db;
+            color: #3498db;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .framework-btn.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+
+        .performance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .metric-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            border-color: #3498db;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.15);
+        }
+
+        .metric-label {
+            font-size: 14px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .chart-container {
+            padding: 30px;
+            min-height: 600px;
+            position: relative;
+            background: white;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 100;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #666;
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .error {
+            color: #e74c3c;
+            background: #fdf2f2;
+            border: 2px solid #f5c6cb;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px;
+            text-align: center;
+        }
+
+        .data-info {
+            background: linear-gradient(135deg, #e8f4fd 0%, #f0f8ff 100%);
+            border: 2px solid #bee5eb;
+            padding: 20px;
+            margin: 20px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            color: #0c5460;
+            text-align: center;
+        }
+
+        #chart-display {
+            width: 100%;
+            height: 500px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-success {
+            background-color: #27ae60;
+            box-shadow: 0 0 10px rgba(39, 174, 96, 0.5);
+        }
+
+        .status-error {
+            background-color: #e74c3c;
+            box-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+        }
+
+        .status-loading {
+            background-color: #f39c12;
+            box-shadow: 0 0 10px rgba(243, 156, 18, 0.5);
+            animation: pulse 1.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { opacity: 1; }
+            to { opacity: 0.5; }
+        }
+
+        .comparison-table {
+            margin: 20px 30px;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .comparison-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .comparison-table th {
+            background: #34495e;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .comparison-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .comparison-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        @media (max-width: 768px) {
+            .framework-selector {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .performance-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .chart-container {
+                padding: 15px;
+            }
+        }
+
+        .test-controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+
+        .test-btn {
+            padding: 10px 20px;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .test-btn:hover {
+            background: #229954;
+            transform: translateY(-2px);
+        }
+
+        .test-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Stacked Area Chart Performance Test</h1>
+            <p>TypeScript Module Comparison: Vega-Lite vs D3.js vs ECharts</p>
+        </div>
+
+        <div class="controls">
+            <div class="framework-selector">
+                <button class="framework-btn active" data-framework="vega">
+                    <span class="status-indicator status-loading"></span>
+                    Vega-Lite
+                </button>
+                <button class="framework-btn" data-framework="d3">
+                    <span class="status-indicator status-loading"></span>
+                    D3.js
+                </button>
+                <button class="framework-btn" data-framework="echarts">
+                    <span class="status-indicator status-loading"></span>
+                    ECharts
+                </button>
+            </div>
+
+            <div class="test-controls">
+                <button class="test-btn" id="run-all-tests">Run All Tests</button>
+                <button class="test-btn" id="clear-results">Clear Results</button>
+            </div>
+
+            <div class="performance-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Data Points</div>
+                    <div class="metric-value" id="data-count">-</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Load Time</div>
+                    <div class="metric-value" id="load-time">-</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Render Time</div>
+                    <div class="metric-value" id="render-time">-</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Memory Usage</div>
+                    <div class="metric-value" id="memory-usage">-</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Framework</div>
+                    <div class="metric-value" id="current-framework">Vega</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="data-info">
+            <strong>Test Dataset:</strong> 366 days (2020-01-01 to 2020-12-31) × 100 products = 36,600 data points<br>
+            <em>Testing compiled TypeScript modules from src/stacked-area-chart/</em>
+        </div>
+
+        <div class="comparison-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Framework</th>
+                        <th>Load Time (ms)</th>
+                        <th>Render Time (ms)</th>
+                        <th>Memory (MB)</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="results-table">
+                    <tr data-framework="vega">
+                        <td><strong>Vega-Lite</strong></td>
+                        <td id="vega-load">-</td>
+                        <td id="vega-render">-</td>
+                        <td id="vega-memory">-</td>
+                        <td id="vega-status">Not tested</td>
+                    </tr>
+                    <tr data-framework="d3">
+                        <td><strong>D3.js</strong></td>
+                        <td id="d3-load">-</td>
+                        <td id="d3-render">-</td>
+                        <td id="d3-memory">-</td>
+                        <td id="d3-status">Not tested</td>
+                    </tr>
+                    <tr data-framework="echarts">
+                        <td><strong>ECharts</strong></td>
+                        <td id="echarts-load">-</td>
+                        <td id="echarts-render">-</td>
+                        <td id="echarts-memory">-</td>
+                        <td id="echarts-status">Not tested</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="chart-container">
+            <div id="loading-indicator" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <div class="loading-text">Loading chart...</div>
+            </div>
+            <div id="chart-display"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import the compiled JavaScript modules
+        import { testData } from './dist/stacked-area-chart/data.js';
+        import { renderVegaChart, getVegaSpec } from './dist/stacked-area-chart/vega.js';
+        import { renderD3Chart } from './dist/stacked-area-chart/d3.js';
+        import { renderEChartsChart } from './dist/stacked-area-chart/echart.js';
+
+        // Performance monitoring
+        class PerformanceMonitor {
+            constructor() {
+                this.results = {};
+                this.startTime = 0;
+                this.loadStartTime = 0;
+            }
+
+            startLoad() {
+                this.loadStartTime = performance.now();
+            }
+
+            startRender() {
+                this.startTime = performance.now();
+            }
+
+            endRender(framework) {
+                const renderTime = performance.now() - this.startTime;
+                const loadTime = this.startTime - this.loadStartTime;
+                
+                const result = {
+                    loadTime: loadTime,
+                    renderTime: renderTime,
+                    memory: performance.memory ? (performance.memory.usedJSHeapSize / 1024 / 1024) : 0,
+                    timestamp: new Date().toISOString()
+                };
+
+                this.results[framework] = result;
+                
+                // Update current metrics
+                document.getElementById('render-time').textContent = `${renderTime.toFixed(1)}ms`;
+                document.getElementById('load-time').textContent = `${loadTime.toFixed(1)}ms`;
+                document.getElementById('current-framework').textContent = framework.charAt(0).toUpperCase() + framework.slice(1);
+                
+                if (performance.memory) {
+                    document.getElementById('memory-usage').textContent = `${result.memory.toFixed(1)}MB`;
+                }
+
+                // Update comparison table
+                this.updateComparisonTable(framework, result);
+
+                return result;
+            }
+
+            updateComparisonTable(framework, result) {
+                const frameworkMap = {
+                    'vega': 'vega',
+                    'd3': 'd3',
+                    'echarts': 'echarts'
+                };
+                
+                const prefix = frameworkMap[framework];
+                if (prefix) {
+                    document.getElementById(`${prefix}-load`).textContent = `${result.loadTime.toFixed(1)}`;
+                    document.getElementById(`${prefix}-render`).textContent = `${result.renderTime.toFixed(1)}`;
+                    document.getElementById(`${prefix}-memory`).textContent = result.memory > 0 ? `${result.memory.toFixed(1)}` : 'N/A';
+                    document.getElementById(`${prefix}-status`).textContent = 'Success';
+                    document.getElementById(`${prefix}-status`).style.color = '#27ae60';
+                }
+            }
+
+            getResults() {
+                return this.results;
+            }
+
+            clearResults() {
+                this.results = {};
+                // Clear comparison table
+                ['vega', 'd3', 'echarts'].forEach(framework => {
+                    document.getElementById(`${framework}-load`).textContent = '-';
+                    document.getElementById(`${framework}-render`).textContent = '-';
+                    document.getElementById(`${framework}-memory`).textContent = '-';
+                    document.getElementById(`${framework}-status`).textContent = 'Not tested';
+                    document.getElementById(`${framework}-status`).style.color = '#666';
+                });
+            }
+        }
+
+        // Global variables
+        let currentChart = null;
+        const perfMonitor = new PerformanceMonitor();
+
+        // Chart implementations using imported modules
+        const chartImplementations = {
+            vega: {
+                render: async (containerId) => {
+                    // Clear container
+                    document.getElementById(containerId).innerHTML = '';
+                    
+                    // Use the imported function
+                    await renderVegaChart(containerId);
+                }
+            },
+
+            d3: {
+                render: async (containerId) => {
+                    // Clear container
+                    document.getElementById(containerId).innerHTML = '';
+                    
+                    // Use the imported class
+                    currentChart = renderD3Chart(containerId, 900, 500);
+                }
+            },
+
+            echarts: {
+                render: async (containerId) => {
+                    // Clear container and dispose existing chart
+                    document.getElementById(containerId).innerHTML = '';
+                    if (currentChart && typeof currentChart.dispose === 'function') {
+                        currentChart.dispose();
+                    }
+                    
+                    // Use the imported class
+                    currentChart = renderEChartsChart(containerId);
+                }
+            }
+        };
+
+        // Event handlers
+        function updateStatus(framework, status) {
+            const btn = document.querySelector(`[data-framework="${framework}"]`);
+            const indicator = btn.querySelector('.status-indicator');
+            indicator.className = `status-indicator status-${status}`;
+        }
+
+        async function switchFramework(framework) {
+            try {
+                // Update UI
+                document.querySelectorAll('.framework-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.querySelector(`[data-framework="${framework}"]`).classList.add('active');
+
+                // Show loading
+                document.getElementById('loading-indicator').style.display = 'block';
+                document.getElementById('chart-display').innerHTML = '';
+                updateStatus(framework, 'loading');
+
+                // Performance monitoring
+                perfMonitor.startLoad();
+                
+                // Small delay to ensure UI updates
+                await new Promise(resolve => setTimeout(resolve, 50));
+                
+                perfMonitor.startRender();
+
+                // Render chart
+                await chartImplementations[framework].render('chart-display');
+
+                // Update metrics
+                perfMonitor.endRender(framework);
+                updateStatus(framework, 'success');
+
+                console.log(`${framework} chart rendered successfully`);
+
+            } catch (error) {
+                console.error(`Error rendering ${framework} chart:`, error);
+                updateStatus(framework, 'error');
+                
+                // Update status in table
+                const frameworkMap = { 'vega': 'vega', 'd3': 'd3', 'echarts': 'echarts' };
+                const prefix = frameworkMap[framework];
+                if (prefix) {
+                    document.getElementById(`${prefix}-status`).textContent = 'Error';
+                    document.getElementById(`${prefix}-status`).style.color = '#e74c3c';
+                }
+                
+                document.getElementById('chart-display').innerHTML = `
+                    <div class="error">
+                        <strong>Error:</strong> Failed to render ${framework} chart.<br>
+                        ${error.message}
+                    </div>
+                `;
+            } finally {
+                document.getElementById('loading-indicator').style.display = 'none';
+            }
+        }
+
+        async function runAllTests() {
+            const testBtn = document.getElementById('run-all-tests');
+            testBtn.disabled = true;
+            testBtn.textContent = 'Running Tests...';
+
+            const frameworks = ['vega', 'd3', 'echarts'];
+            
+            for (const framework of frameworks) {
+                console.log(`Testing ${framework}...`);
+                await switchFramework(framework);
+                // Wait a bit between tests for stability
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            testBtn.disabled = false;
+            testBtn.textContent = 'Run All Tests';
+
+            // Show results summary
+            const results = perfMonitor.getResults();
+            console.log('Test Results:', results);
+        }
+
+        function clearResults() {
+            perfMonitor.clearResults();
+            document.getElementById('chart-display').innerHTML = '';
+            document.getElementById('current-framework').textContent = '-';
+            document.getElementById('load-time').textContent = '-';
+            document.getElementById('render-time').textContent = '-';
+            document.getElementById('memory-usage').textContent = '-';
+            
+            // Reset status indicators
+            document.querySelectorAll('.status-indicator').forEach(indicator => {
+                indicator.className = 'status-indicator status-loading';
+            });
+        }
+
+        // Initialize
+        async function initialize() {
+            console.log('Initializing test page...');
+            console.log(`Test data loaded: ${testData.length} points`);
+            
+            document.getElementById('data-count').textContent = testData.length.toLocaleString();
+
+            // Set up event listeners
+            document.querySelectorAll('.framework-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const framework = btn.dataset.framework;
+                    switchFramework(framework);
+                });
+            });
+
+            document.getElementById('run-all-tests').addEventListener('click', runAllTests);
+            document.getElementById('clear-results').addEventListener('click', clearResults);
+
+            // Load initial chart (Vega)
+            await switchFramework('vega');
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (currentChart && typeof currentChart.resize === 'function') {
+                currentChart.resize();
+            }
+        });
+
+        // Start the application
+        initialize().catch(error => {
+            console.error('Initialization error:', error);
+            document.getElementById('chart-display').innerHTML = `
+                <div class="error">
+                    <strong>Initialization Error:</strong> ${error.message}<br>
+                    <em>Make sure TypeScript files are compiled. Run: npm run build</em>
+                </div>
+            `;
+        });
+    </script>
+</body>
+</html>
