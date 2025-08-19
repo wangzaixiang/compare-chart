@@ -6,8 +6,8 @@ compare-chart 是一个对比 vega, d3, echart 生成复杂图表时的性能测
 
 # Result
 1. Safari
-   ![img.png](../doc/result_safari.png)
+   ![img.png](doc/result_safari.png)
 2. Chrome
-   ![img_1.png](../doc/result_chrome.png)
+   ![img_1.png](doc/result_chrome.png)
 
 It looks: vega >= D3 >>= echart
